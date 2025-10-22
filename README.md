@@ -1,1 +1,10 @@
 DAO Treasury Manager
+
+- A decentralized treasury management dashboard designed for DAOs (Decentralized Autonomous Organizations). It provides transparency, accountability, and control over treasury funds, enabling communities to make data-driven financial decisions.
+
+Tech Stack
+Frontend: React, Tailwind CSS
+Backend: Express
+Database:  MongoDB
+Blockchain: Web3.js / Ethers.js for on-chain data
+Wallet: MetaMask integration
