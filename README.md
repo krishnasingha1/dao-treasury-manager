@@ -10,3 +10,4 @@
 - Database:  MongoDB
 - Blockchain: Web3.js / Ethers.js for on-chain data
 - Wallet: MetaMask integration
+- 
