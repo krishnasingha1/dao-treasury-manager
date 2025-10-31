@@ -5,9 +5,9 @@
 
 
 ## Tech Stack
-- Frontend: React, Tailwind CSS, Zustand
-- Backend: Express
-- Database:  MongoDB
-- Blockchain: Web3.js / Ethers.js for on-chain data
-- Wallet: MetaMask integration
+- **Frontend:** React, Tailwind CSS, Zustand
+- **Backend:** Express
+- **Database:**  MongoDB
+- **Blockchain:** Web3.js / Ethers.js for on-chain data
+- **Wallet:** MetaMask integration
 - 
