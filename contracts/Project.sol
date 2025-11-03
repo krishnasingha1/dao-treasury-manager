@@ -1,65 +1,119 @@
 pragma solidity ^0.8.0;
 
-interface IERC20 {
-    function transfer(address to, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
+contract DAOTreasury {
 
-contract TreasuryManager {
-    address public owner;
-    
-    event Deposit(address indexed from, uint amount);
-    event Withdrawal(address indexed to, uint amount);
-    event TokenWithdrawal(address indexed token, address indexed to, uint amount);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    constructor(address _owner) {
-        owner = _owner;
+    struct Proposal {
+        uint id;
+        string desc;
+        uint deadline;
+        uint yes;
+        uint no;
+        bool done;
+        address creator;
+        address to;
+        uint amount;
+        mapping(address => bool) voted;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "owner:!");
+    address public admin;
+    mapping(address => bool) public members;
+    Proposal[] public proposals;
+    uint public propCount;
+
+    event ProposalCreated(uint id, string desc, uint deadline);
+    event Voted(uint id, address voter, bool support);
+    event ProposalExecuted(uint id, address to, uint amount);
+
+    constructor() {
+        admin = msg.sender;
+        members[msg.sender] = true;
+    }
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "admin:!");
         _;
     }
 
-    receive() external payable {
-        emit Deposit(msg.sender, msg.value);
+    modifier onlyMember() {
+        require(members[msg.sender], "member:!");
+        _;
     }
 
-    function spend(address payable _to, uint _amount) public onlyOwner {
-        require(_to != address(0), "zero:!");
-        require(address(this).balance >= _amount, "funds:!");
-        (bool sent, ) = _to.call{value: _amount}("");
-        require(sent, "send:!");
-        emit Withdrawal(_to, _amount);
+    receive() external payable {}
+
+    function addMember(address _member) public onlyAdmin {
+        require(_member != address(0), "zero:!");
+        members[_member] = true;
     }
 
-    function spendToken(address _tokenAddress, address _to, uint _amount) public onlyOwner {
-        require(_to != address(0), "zero:!");
-        require(_tokenAddress != address(0), "zero:!");
-        
-        IERC20 token = IERC20(_tokenAddress);
-        uint balance = token.balanceOf(address(this));
-        require(balance >= _amount, "funds:!");
-        
-        token.transfer(_to, _amount);
-        
-        emit TokenWithdrawal(_tokenAddress, _to, _amount);
+    function createProposal(string memory _desc, uint _duration, address _to, uint _amount) public onlyMember {
+        require(_duration > 0, "time:!");
+        uint deadline = block.timestamp + _duration;
+
+        Proposal storage p = proposals.push();
+        p.id = propCount;
+        p.desc = _desc;
+        p.deadline = deadline;
+        p.creator = msg.sender;
+        p.to = _to;
+        p.amount = _amount;
+
+        propCount++;
+
+        emit ProposalCreated(p.id, _desc, deadline);
     }
 
-    function transferOwnership(address _newOwner) public onlyOwner {
-        require(_newOwner != address(0), "zero:!");
-        emit OwnershipTransferred(owner, _newOwner);
-        owner = _newOwner;
+    function vote(uint _id, bool _support) public onlyMember {
+        require(_id < propCount, "id:!");
+        Proposal storage p = proposals[_id];
+        require(!p.voted[msg.sender], "voted:!");
+        require(block.timestamp < p.deadline, "deadline:!");
+
+        p.voted[msg.sender] = true;
+
+        if (_support) p.yes++;
+        else p.no++;
+
+        emit Voted(_id, msg.sender, _support);
+    }
+
+    function executeProposal(uint _id) public onlyMember {
+        require(_id < propCount, "id:!");
+        Proposal storage p = proposals[_id];
+        require(!p.done, "done:!");
+        require(block.timestamp >= p.deadline, "active:!");
+        require(p.yes > p.no, "failed:!");
+
+        p.done = true;
+
+        if (p.to != address(0) && p.amount > 0) {
+            require(address(this).balance >= p.amount, "funds:!");
+            (bool sent, ) = p.to.call{value: p.amount}("");
+            require(sent, "send:!");
+        }
+
+        emit ProposalExecuted(_id, p.to, p.amount);
+    }
+
+    function getProposal(uint _id) public view returns (
+        uint, string memory, uint, uint, uint, bool, address, address, uint
+    ) {
+        require(_id < propCount, "id:!");
+        Proposal storage p = proposals[_id];
+        return (
+            p.id,
+            p.desc,
+            p.deadline,
+            p.yes,
+            p.no,
+            p.done,
+            p.creator,
+            p.to,
+            p.amount
+        );
     }
 
     function getBalance() public view returns (uint) {
         return address(this).balance;
     }
-
-    function getTokenBalance(address _tokenAddress) public view returns (uint) {
-        require(_tokenAddress != address(0), "zero:!");
-        return IERC20(_tokenAddress).balanceOf(address(this));
-    }
 }
-
